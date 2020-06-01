@@ -5,10 +5,7 @@ const port = 5000
 const {mongourl} = require('./keys');
 const bcrypt = require('bcryptjs')
 
-require('./models/user')
 
-app.use(express.json())
-app.use(require('./routes/auth'))
 
 mongoose.connect(mongourl,{
     useNewUrlParser: true,
@@ -22,6 +19,13 @@ mongoose.connection.on('connected',()=>{
 mongoose.connection.on('error',(err)=>{
     console.log("error in connecting",err);
 })
+
+require('./models/user')
+require('./models/post')
+
+app.use(express.json())
+app.use(require('./routes/auth'))
+app.use(require('./routes/post'))
 
 
 
