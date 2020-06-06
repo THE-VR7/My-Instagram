@@ -9,7 +9,7 @@ const requirelogin = require('../middleware/requirelogin')
 
 
 
-router.get('/protected',requirelogin,(req,res)=>{
+router.get('/',(req,res)=>{
     res.send("Hello")
 })
 
@@ -51,7 +51,7 @@ router.post('/signup',(req,res)=>{
 
 })
 
-router.post('/signin',(req,res)=>{
+router.post('/login',(req,res)=>{
     const {email,password} = req.body
     if(!email || !password)
     {
@@ -70,7 +70,8 @@ router.post('/signin',(req,res)=>{
             {
                 // res.json({message:"Signin Successfully"})
                 const token = jwt.sign({_id:saved._id},JWT_SECRET)
-                res.json({token})
+                const {_id,name,email} = saved
+                res.json({token:token,user:{_id,name,email}})
             }
             else
             {
