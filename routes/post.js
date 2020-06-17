@@ -5,15 +5,28 @@ const requirelogin = require('../middleware/requirelogin')
 const Post = mongoose.model("Post")
 
 
-router.get('/allpost',(req,res)=>{
+router.get('/allpost',requirelogin,(req,res)=>{
     Post.find()
     .populate("postedby","_id name")
+    .populate("comments.postedBy","_id name")
     .then(posts =>
         {
             res.json({posts})
         })
     .catch(err=>{
-            console.log(err)
+            console.log(err) 
+        })
+})
+router.get('/subpost',requirelogin,(req,res)=>{
+    Post.find({postedby:{$in:req.user.following}})
+    .populate("postedby","_id name")
+    .populate("comments.postedBy","_id name")
+    .then(posts =>
+        {
+            res.json({posts})
+        })
+    .catch(err=>{
+            console.log(err) 
         })
 })
 
@@ -33,8 +46,9 @@ router.get('/mypost',requirelogin,(req,res)=>{
 
 
 router.post('/createpost',requirelogin,(req,res)=>{
-    const {title,body} = req.body
-    if(!title || !body)
+    const {title,body,pic} = req.body
+    // console.log(req.body)
+    if(!title || !body || !pic)
     {
         return res.status(422).json({error:"Please add all the fields"})
     }
@@ -42,8 +56,9 @@ router.post('/createpost',requirelogin,(req,res)=>{
     const post = new Post({
         title,
         body,
+        photo:pic,
         postedby:req.user
-    })
+    }) 
         req.user.password = undefined
     post.save()
     .then(result=>{
@@ -54,7 +69,87 @@ router.post('/createpost',requirelogin,(req,res)=>{
     })
 })
 
+router.put('/like',requirelogin,(req,res)=>{
+    Post.findByIdAndUpdate(req.body.postId,{
+        $push:{likes:req.user._id}
+    },{
+        new:true
+    })
+    .populate("postedby","_id name")
+    .populate("comments.postedBy","_id name")
 
+    .exec((err,result)=>{
+        if(err)
+        {
+            return res.status(422).json({error:err})
+        }else{
+            res.json(result) 
+        }
+    })
+})
 
+router.put('/unlike',requirelogin,(req,res)=>{
+    Post.findByIdAndUpdate(req.body.postId,{
+        $pull:{likes:req.user._id}
+    },{
+        new:true
+    })
+    .populate("postedby","_id name")
+    .populate("comments.postedBy","_id name")
+
+    .exec((err,result)=>{
+        if(err)
+        {
+            return res.status(422).json({error:err})
+        }else{
+            res.json(result) 
+        }
+    })
+})
+
+router.put('/comment',requirelogin,(req,res)=>{
+    const comment = {
+        text:req.body.text,
+        postedBy:req.user._id
+    }
+    Post.findByIdAndUpdate(req.body.postId,{
+        $push:{comments:comment}
+    },{
+        new:true
+    })
+    // .populate([{"postedby":"_id name"}, {"comments:postedBy": "_id name"}])
+    .populate("postedby","_id name")
+    .populate("comments.postedBy","_id name")
+    .exec((err,result)=>{
+        if(err)
+        {
+            return res.status(422).json({error:err})
+        }else{
+            res.json(result) 
+        }
+    })
+})
+
+router.delete('/deletepost/:postId',requirelogin,(req,res)=>{
+    Post.findOne({_id:req.params.postId})
+    .populate("postedby","_id")
+    .exec((err,post)=>{
+        if(err || !post)
+        {
+            return res.status(422).json({error:err})
+        }
+        if(post.postedby._id.toString() === req.user._id.toString()){
+            post.remove()
+            .then(result=>{
+                res.json(
+                    result
+                )
+            }).catch(err=>{
+                console.log("not deleted")
+                console.log(err)
+            }) 
+        }
+    })
+})
 
 module.exports = router
